@@ -278,6 +278,9 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 			_gl.deleteFramebuffer( renderTargetProperties.__webglFramebuffer );
 			if ( renderTargetProperties.__webglDepthbuffer ) _gl.deleteRenderbuffer( renderTargetProperties.__webglDepthbuffer );
+			if ( renderTargetProperties.__webglDepthRenderbuffer ) _gl.deleteRenderbuffer( renderTargetProperties.__webglDepthRenderbuffer );
+			if ( renderTargetProperties.__webglMultisampledFramebuffer ) _gl.deleteFramebuffer( renderTargetProperties.__webglMultisampledFramebuffer );
+			if ( renderTargetProperties.__webglMultisampledDepthRenderbuffer ) _gl.deleteRenderbuffer( renderTargetProperties.__webglMultisampledDepthRenderbuffer );
 
 		}
 
@@ -655,9 +658,14 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 				if ( isWebGL2 === false ) throw new Error( 'Float Depth Texture only supported in WebGL2.0' );
 				glInternalFormat = _gl.DEPTH_COMPONENT32F;
 
+			} else if ( texture.type === UnsignedIntType ) {
+
+				glInternalFormat = _gl.DEPTH_COMPONENT24;
+
 			} else if ( isWebGL2 ) {
 
 				// WebGL 2.0 requires signed internalformat for glTexImage2D
+
 				glInternalFormat = _gl.DEPTH_COMPONENT16;
 
 			}
@@ -1030,13 +1038,40 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 					if ( renderTarget.depthBuffer ) {
 
-						renderTargetProperties.__webglDepthRenderbuffer = _gl.createRenderbuffer();
-						setupRenderBufferStorage( renderTargetProperties.__webglDepthRenderbuffer, renderTarget, true );
+						renderTargetProperties.__webglMultisampledDepthRenderbuffer = _gl.createRenderbuffer();
+
+						if ( renderTarget.depthTexture ) {
+
+							glInternalFormat = _gl.DEPTH_COMPONENT16;
+
+							if ( renderTarget.depthTexture.type === FloatType ) {
+
+								glInternalFormat = _gl.DEPTH_COMPONENT32F;
+
+							} else if ( renderTarget.depthTexture.type === UnsignedIntType ) {
+
+								glInternalFormat = _gl.DEPTH_COMPONENT24;
+
+							}
+
+							_gl.bindRenderbuffer( _gl.RENDERBUFFER, renderTargetProperties.__webglMultisampledDepthRenderbuffer );
+
+							var samples = getRenderTargetSamples( renderTarget );
+							_gl.renderbufferStorageMultisample( _gl.RENDERBUFFER, samples, glInternalFormat, renderTarget.width, renderTarget.height );
+
+							_gl.bindFramebuffer( _gl.FRAMEBUFFER, renderTargetProperties.__webglMultisampledFramebuffer );
+							_gl.framebufferRenderbuffer( _gl.FRAMEBUFFER, _gl.DEPTH_ATTACHMENT, _gl.RENDERBUFFER, renderTargetProperties.__webglMultisampledDepthRenderbuffer );
+							_gl.bindRenderbuffer( _gl.RENDERBUFFER, null );
+
+						} else {
+
+							_gl.bindFramebuffer( _gl.FRAMEBUFFER, renderTargetProperties.__webglMultisampledFramebuffer );
+							setupRenderBufferStorage( renderTargetProperties.__webglMultisampledDepthRenderbuffer, renderTarget, true );
+
+						}
+
 
 					}
-
-					_gl.bindFramebuffer( _gl.FRAMEBUFFER, null );
-
 
 				} else {
 
